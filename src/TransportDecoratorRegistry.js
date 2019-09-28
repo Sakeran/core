@@ -4,11 +4,13 @@
  * Stores instances of TransportDecorators and rules for applying them
  * @property {Map<string, TransportDecorator>} decorators
  * @property {Map<string, Array<TransportDecorationRule>} rules
+ * @property {Map<string, function} decorations
  */
 class TransportDecoratorRegistry {
   constructor() {
     this.decorators = new Map();
     this.rules = new Map();
+    this.decorations = new Map();
   }
 
   /**
@@ -66,7 +68,7 @@ class TransportDecoratorRegistry {
   }
 
   /**
-   * Load and validate TransportDecoration rule sets
+   * Loads, validates, and compiles TransportDecoration rule sets
    * @param {object} config configuration to load
    */
   loadRules(config = {}) {
@@ -77,6 +79,7 @@ class TransportDecoratorRegistry {
         );
 
       // Ensure each rule defined is valid.
+
       for (const rule of rules) {
         const decorator = rule.decorator;
 
@@ -91,7 +94,20 @@ class TransportDecoratorRegistry {
           );
       }
 
+      // Compile the ruleset's functions
+      const decoratorFunctions = rules.map(({ decorator, config }) => (message, options) =>
+        this.getDecorator(decorator).decorate(message, config || {}, options)
+      );
+
+      // Reduce the ruleset to a single decoration function
+      const decorateMessage = (message, options = {}) =>
+        decoratorFunctions.reduce(
+          (acc, decorator) => decorator(acc, options),
+          message
+        );
+
       this.rules.set(identifier, rules);
+      this.decorations.set(identifier, decorateMessage);
     }
   }
 
@@ -105,26 +121,47 @@ class TransportDecoratorRegistry {
     if (!identifier)
       throw new Error("TransportStreams must define a 'identifier' getter.");
 
-    const decorators = this.getRules(identifier).map(
-      ({ decorator, config }) => message =>
-        this.decorators.get(decorator).decorate(message, config || {})
-    );
+    const decoration = this.getDecoration(identifier);
+
+    if (!decoration)
+      throw new Error(
+        `No TransportDecorations are defined for identifier: ${identifier}`
+      );
 
     return class extends streamConstructor {
-      write(message, encoding) {
-        message = decorators.reduce((acc, decorate) => decorate(acc), message);
-        super.write(message, encoding);
+      write(message, options) {
+        message = decoration(message, options);
+        super.write(message, options);
       }
     };
   }
 
   /**
+   * Returns the TransportDecorator instance associated with the given name.
+   * @param {sting} name 
+   * @return {TransportDecorator}
+   */
+  getDecorator(name) {
+    return this.decorators.get(name);
+  }
+
+  /**
    * Returns the TransportDecorationRules specified for the given identifier.
    * @param {string} identifier
+   * @return {Array<TransportDecorationRule>}
    */
   getRules(identifier) {
     if (!this.rules.has(identifier)) return [];
     return this.rules.get(identifier);
+  }
+
+  /**
+   * Returns the decoration function specified for the given identifier.
+   * @param {string} identifier
+   * @return {function}
+   */
+  getDecoration(identifier) {
+    return this.decorations.get(identifier);
   }
 }
 
