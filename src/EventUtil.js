@@ -1,27 +1,29 @@
 'use strict';
 
-const sty = require('sty');
-
 /**
- * Helper methods for colored output during input-events
+ * Helper methods for output during input-events
  */
 class EventUtil {
   /**
-   * Generate a function for writing colored output to a socket
+   * Generate a function for writing output to a socket
    * @param {net.Socket} socket
    * @return {function (string)}
    */
   static genWrite(socket) {
-    return string => socket.write(sty.parse(string));
+    // NOTE: It is no longer necessary to parse anything with the addition
+    // of TransportDecorators.
+    return string => socket.write(string);
   }
 
   /**
-   * Generate a function for writing colored output to a socket with a newline
+   * Generate a function for writing output to a socket with a newline
    * @param {net.Socket} socket
    * @return {function (string)}
    */
   static genSay(socket) {
-    return string => socket.write(sty.parse(string + '\r\n'));
+    // NOTE: It is no longer necessary to parse anything with the addition
+    // of TransportDecorators.
+    return string => socket.write(string + '\r\n');
   }
 }
 
