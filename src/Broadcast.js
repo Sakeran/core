@@ -15,17 +15,17 @@ class Broadcast {
   /**
    * @param {Broadcastable} source Target to send the broadcast to
    * @param {string} message
-   * @param {number|boolean} wrapWidth=false width to wrap the message to or don't wrap at all
-   * @param {boolean} useColor Whether to parse color tags in the message
+   * @param {object} options
    * @param {?function(target, message): string} formatter=null Function to call to format the
-   *   message to each target
+   * message to each target
    */
-  static at(source, message = '', wrapWidth = false, useColor = true, formatter = null) {
+  static to(source, message = "", options = {}, formatter = null) {
     if (!Broadcast.isBroadcastable(source)) {
-      throw new Error(`Tried to broadcast message to non-broadcastable object: MESSAGE [${message}]`);
+      throw new Error(
+        `Tried to broadcast message to non-broadcastable object: MESSAGE [${message}]`
+      );
     }
 
-    useColor = typeof useColor === 'boolean' ? useColor : true;
     formatter = formatter || ((target, message) => message);
 
     message = Broadcast._fixNewlines(message);
@@ -39,11 +39,36 @@ class Broadcast {
         target.socket.write('\r\n');
         target.socket._prompted = false;
       }
-
-      let targetMessage = formatter(target, message);
-      targetMessage = wrapWidth ? Broadcast.wrap(targetMessage, wrapWidth) : ansi.parse(targetMessage);
-      target.socket.write(targetMessage);
+      target.socket.write(formatter(target, message), options);
     }
+  }
+
+  /**
+   * @param {Broadcastable} source Target to send the broadcast to
+   * @param {string} message
+   * @param {number|boolean} wrapWidth=false width to wrap the message to or don't wrap at all
+   * @param {boolean} useColor Whether to parse color tags in the message
+   * @param {?function(target, message): string} formatter=null Function to call to format the
+   *   message to each target
+   */
+  static at(
+    source,
+    message = "",
+    wrapWidth = false,
+    useColor = true,
+    formatter = null
+  ) {
+    useColor = typeof useColor === "boolean" ? useColor : true;
+
+    return Broadcast.to(
+      source,
+      message,
+      {
+        useColor,
+        wrapWidth
+      },
+      formatter
+    );
   }
 
   /**
