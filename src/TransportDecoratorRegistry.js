@@ -4,7 +4,7 @@
  * Stores instances of TransportDecorators and rules for applying them
  * @property {Map<string, TransportDecorator>} decorators
  * @property {Map<string, Array<TransportDecorationRule>} rules
- * @property {Map<string, function} decorations
+ * @property {Map<string, function>} decorations
  */
 class TransportDecoratorRegistry {
   constructor() {
@@ -95,9 +95,17 @@ class TransportDecoratorRegistry {
       }
 
       // Compile the ruleset's functions
-      const decoratorFunctions = rules.map(({ decorator, config }) => (message, options) =>
-        this.getDecorator(decorator).decorate(message, config || {}, options)
-      );
+      const decoratorFunctions = rules.map(rule => {
+        const { decorator, config } = rule;
+        const instance = this.getDecorator(decorator);
+        const compiledConfig = Object.assign(
+          {},
+          instance.config || {},
+          config || {}
+        );
+        return (message, options) =>
+          instance.decorate(message, compiledConfig, options);
+      });
 
       // Reduce the ruleset to a single decoration function
       const decorateMessage = (message, options = {}) =>
@@ -138,7 +146,7 @@ class TransportDecoratorRegistry {
 
   /**
    * Returns the TransportDecorator instance associated with the given name.
-   * @param {sting} name 
+   * @param {sting} name
    * @return {TransportDecorator}
    */
   getDecorator(name) {
